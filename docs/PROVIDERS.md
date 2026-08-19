@@ -32,5 +32,5 @@
 
 - **Anthropic**: full matrix known (V2) → clamp and (when configured) inject on allowlisted models; `xhigh` downgrades to `high` on the 4.6 pair; ≤4.5-era non-Opus models are never touched.
 - **OpenAI**: values are *model-dependent* (R1) with no published per-model matrix → **clamp-only, and clamp targets restricted to the conservative core `low|medium|high`** unless the request already used an extended value; never inject.
-- **Gemini**: prefer clamping whichever field the request already uses (`thinkingLevel` ↔ level scale; `thinkingBudget` via level→budget table per R3 ranges); inject only `thinkingLevel` and only on guide-matrix models.
+- **Gemini**: clamp `thinkingLevel` requests within the conservative core; **budget-style (`thinkingBudget`) requests are observe-only in v1** — numeric ranges are model-dependent and unverified, so effortd never rewrites them; inject only `thinkingLevel` and only on guide-matrix models; `minimal` is sub-low and never touched.
 - **Environment recon (2026-08-18, founder machine)**: `OPENAI_API_KEY` present; `codex`, `gemini`, `claude`, `gh` installed (gh authed as vivekvinodh); no `ANTHROPIC_API_KEY`/`ant` CLI; `npm whoami` → ENEEDAUTH (npm login is a founder action before E8.2 publish).
