@@ -33,6 +33,6 @@ The project descends from studying Claude Code's **auto-mode classifier** — th
 
 Named risk: an incumbent gateway adds an effort-policy feature. Mitigation: stay the best focused layer, and ship the policy core as embeddable middleware (backlog) so incumbents become distribution, not competition.
 
-## The audience is API-key users — and that's fine
+## Audience (corrected by E0.3 verification)
 
-Flat-rate subscription users feel effort through usage limits, not dollars, and their agents' OAuth traffic doesn't route through third-party base URLs anyway. Cost-exposed users (API keys, enterprise gateways, Bedrock/Vertex/Foundry) are both the audience that cares and the audience that can point a base URL at a proxy. Design for them without pretending otherwise.
+The founding assumption — that subscription OAuth traffic can't route through a custom base URL — was **wrong**: Claude Code's gateway docs state that base-URL-only routing keeps a saved claude.ai login as the active credential, with gateways simply forwarding the OAuth capability in `anthropic-beta` (effortd forwards all headers verbatim, so this works by construction). Cost-exposed users (API keys, enterprise gateways, Bedrock/Vertex/Foundry) remain the primary audience — they feel effort in dollars — but subscription users get observe/suggest-mode visibility into their usage-limit burn too. This correction is itself evidence for the verify-before-code rule the plan enforces.

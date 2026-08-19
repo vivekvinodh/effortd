@@ -28,7 +28,7 @@ What *is* worth building: one normalized effort scale across providers, policy y
 - **Fail-open — never break the agent.** Any internal effortd error forwards the request untouched. The agent must behave identically with a broken effortd in the middle.
 - **Streaming is sacred.** SSE passes through unbuffered; usage parsing tees the stream and can die without the client noticing.
 - **Telemetry is metadata-only.** Token counts, effort levels, decision reasons, hashed session fingerprints. Never message content, never headers, never keys.
-- **BYO credentials.** Auth headers pass through verbatim; effortd stores nothing. (Consequence: Claude Code subscription/OAuth traffic is out of scope — the audience is API-key and gateway users, who are exactly the users with per-token cost exposure.)
+- **BYO credentials.** Auth headers pass through verbatim — including OAuth capability headers — and effortd stores nothing. Per Claude Code's own gateway docs, base-URL routing with a saved claude.ai subscription login keeps that subscription as the active credential, so both subscription and API-key users are in scope (API-key/gateway users are still the ones with per-token cost exposure).
 - **No blind injection.** effortd only sets an effort field on models in its verified support matrix ([docs/PROVIDERS.md](docs/PROVIDERS.md)); unknown models pass through untouched.
 
 ## License

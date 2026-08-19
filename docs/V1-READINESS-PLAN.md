@@ -67,18 +67,18 @@ Empty `git init` repo; this plan. Name candidates npm-free (2026-08-18). No code
 | V7 | Anthropic effort is available via Bedrock/Vertex/Foundry model IDs too (Claude Code runs effort there) — upstream targets beyond api.anthropic.com are viable later (§8) | changelog 2.1.122, 2.1.158 |
 | V8 | npm names `effortd`/`reasongate`/`effort-gate`/`spendgate` unclaimed | `npm view` E404, 2026-08-18 |
 
-**UNVERIFIED — training-data priors; resolve in E0.3 before dependent code** (rule 11):
+**RESOLVED at E0.3 (2026-08-18)** — every row verified against live official sources; full citations + mapper policy in `docs/PROVIDERS.md` (R1–R8). Three priors required correction:
 
-| # | Claim (as remembered) | Blocks | Resolution recorded in |
-|---|---|---|---|
-| U1 | OpenAI chat completions: `reasoning_effort` top-level; Responses API: `reasoning: {effort}`; values include `minimal\|low\|medium\|high`; o-series + gpt-5-family only | E2.2 | docs/PROVIDERS.md |
-| U2 | OpenAI streamed usage requires `stream_options: {include_usage: true}`; absent otherwise | E4.1 | docs/PROVIDERS.md |
-| U3 | Gemini: `generationConfig.thinkingConfig.thinkingBudget` (numeric; flash 0–24576, pro 128–32768, `-1` dynamic); newer models may use `thinkingLevel` | E2.3 | docs/PROVIDERS.md |
-| U4 | Gemini usage arrives as `usageMetadata` in the final stream chunk | E4.1 | docs/PROVIDERS.md |
-| U5 | Codex CLI: custom provider via config.toml `model_providers.*.base_url`; effort via `model_reasoning_effort` | E6.2 | docs/PROVIDERS.md |
-| U6 | Gemini CLI: base-URL override via `GOOGLE_GEMINI_BASE_URL` env | E6.3 | docs/PROVIDERS.md |
-| U7 | Claude Code subscription (OAuth) traffic cannot be pointed at a third-party base URL (API-key/gateway only) — currently an *assumption*, stated as such | E6.1 README wording | docs/PROVIDERS.md |
-| U8 | Anthropic SSE usage shape: `message_start` carries `usage.input_tokens` (+ cache fields), `message_delta` carries cumulative `usage.output_tokens` — high confidence but confirm against a live fixture | E4.1 | recorded fixture |
+| # | Outcome |
+|---|---|
+| U1 → R1 | VERIFIED+corrected: OpenAI effort space is now `none…max` and **model-dependent**; Responses `reasoning.effort` primary; chat `reasoning_effort` same shared enum → clamp-only policy |
+| U2 → R2 | VERIFIED: `stream_options.include_usage` → single final usage chunk (`choices: []`); interrupted streams may lack it (accepted coverage gap) |
+| U3 → R3 | VERIFIED+**corrected**: Gemini is `thinkingLevel`-enum-first now (`minimal…high`, model-dependent); `thinkingBudget` (0=off, −1=auto) still accepted |
+| U4 → R4 | VERIFIED fields (`promptTokenCount`/`candidatesTokenCount`/`thoughtsTokenCount`/…); per-chunk cumulativeness pinned at the E4.1 live fixture |
+| U5 → R5 | VERIFIED+**corrected**: Codex `wire_api = "responses"` is the only wire; `model_reasoning_effort` = `minimal…xhigh`; top-level `model_provider` selects |
+| U6 → R6 | VERIFIED: `GOOGLE_GEMINI_BASE_URL` honored (genai SDK; merged gemini-cli PRs #2899/#6380) — API-key auth mode |
+| U7 → R7 | **Corrected, favorably**: base-URL-only routing keeps a saved claude.ai subscription login active (gateway forwards `anthropic-beta` OAuth capability — effortd passes headers verbatim) → subscription users in scope; README/DESIGN updated |
+| U8 → R8 | VERIFIED with exact payloads: `message_start` usage (input + cache fields), `message_delta` usage **cumulative** (doc's own warning), final delta may carry full usage |
 
 ### 2.3 Binding design conclusions (2026-08-18 analysis — the "why" record)
 
@@ -108,7 +108,7 @@ LiteLLM (generic proxy: keys, fallbacks, budgets — no effort-policy layer) · 
   - [ ] Runtime dep list is exactly `["yaml"]` (rule: dependency austerity).
 - **Verify**: `npm run verify`; `npm pack --dry-run` lists only intended files.
 
-### [ ] E0.2 Docs substrate: README skeleton + PROVIDERS.md + design record
+### [x] E0.2 Docs substrate: README skeleton + PROVIDERS.md + design record
 - **Objective**: the repo explains itself from commit ~2, and the docs-ride-along rule has somewhere to land.
 - **Depends on**: E0.1.
 - Tasks: `README.md` — positioning (from §2.3/§2.4, honest), the mode ladder, **"status: pre-release, quickstarts land only with recorded evidence"** banner; `docs/PROVIDERS.md` seeded with the §2.2 register verbatim (VERIFIED + UNVERIFIED tables, to be updated by E0.3); `docs/DESIGN.md` capturing §2.3 + the prime invariant so the "why" survives outside this plan.
@@ -116,7 +116,7 @@ LiteLLM (generic proxy: keys, fallbacks, budgets — no effort-policy layer) · 
   - [ ] All three docs exist; README makes zero executable claims (no untested quickstart — rule 8).
 - **Verify**: read-through against §2; `npm run verify` untouched-green.
 
-### [ ] E0.3 Provider claims verification spike (U1–U8)
+### [x] E0.3 Provider claims verification spike (U1–U8)
 - **Objective**: convert every UNVERIFIED row to a dated, cited fact — or a documented correction — before any mapper code exists. This is the plan's verify-before-fix discipline applied to training-data memory.
 - **Depends on**: E0.2 (PROVIDERS.md exists to receive results).
 - Tasks: for U1–U6: fetch current official docs (OpenAI API ref, Gemini API ref, Codex CLI config docs, Gemini CLI docs), record exact field names/values/model gates with URL + date in `docs/PROVIDERS.md`; for U7: check Claude Code gateway docs for the auth-mode statement; for U8: defer final confirmation to the E4.1 live fixture but capture the documented shape now. Where a claim is wrong, write what IS true; where a surface doesn't exist (e.g. no Gemini CLI base-URL override), mark the integration **descoped** and adjust E6.3's approach (documented alternative or removal) — do not force it.
@@ -360,4 +360,5 @@ LiteLLM (generic proxy: keys, fallbacks, budgets — no effort-policy layer) · 
 *(append-only; newest last — `YYYY-MM-DD — EX.Y — commit — result/evidence`)*
 
 - 2026-08-18 — Plan created. Source: same-session research (Claude Code v2.1.235 changelog/docs/bundle via research agent; current Anthropic API reference; router-economics analysis; npm E404 checks). Founder decisions on record: policy-gateway shape chosen over launcher/MCP (those → §8); comprehensive plan requested before any scaffolding (an in-flight scaffold attempt was intentionally halted — repo contains only `git init` + this plan). 24 steps across E0–E8; 8 UNVERIFIED provider claims gating E2/E4/E6 via the E0.3 spike. **Plan approved by founder 2026-08-18 — execution started.**
+- 2026-08-18 — E0.2 — `dfd6ec8` — README (positioning, mode ladder, invariants, pre-release banner; zero executable claims by audit — it contains no commands at all), docs/DESIGN.md (four binding conclusions + derived defaults + prime invariant + positioning), docs/PROVIDERS.md (V1–V8 + U1–U8 register seeded verbatim). `verify-exit=0` untouched-green.
 - 2026-08-18 — E0.1 — `a7d498b` — scaffold + gate live. **Failing-first evidence**: `test/cli.test.ts` written before `src/` existed → `npm test` failed with `Failed to load url ../src/cli.js … Does the file exist?` (1 file failed); implementation then flipped it to 4/4 green. **Deliberate-break evidence (DoD)**: temp `src/_break.ts` → `error TS2322: Type 'string' is not assignable to type 'number'`; temp `test/_break.test.ts` → `FAIL … AssertionError: expected 1 to be 2` — both halves of `verify` catch, both reverted, `verify-exit=0` re-confirmed. CLI smoke on the compiled `dist/`: `help`→0, stub commands→1 with honest not-implemented message, unknown→2 (first measurement showed `unknown-exit=0` — artifact of reading `$?` after a `| head` pipeline, i.e. head's exit; re-measured unpiped → 2). `npm pack --dry-run`: LICENSE + dist/cli.js + dist/index.js + package.json only. Runtime deps `["yaml"]` exactly. CI workflow authored (node 20/22 matrix, no event-derived inputs); activates at E8.2 first push.
