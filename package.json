@@ -4,6 +4,12 @@
   "description": "Reasoning-spend policy gateway for AI coding agents — normalize, observe, and govern model effort across providers",
   "license": "MIT",
   "author": "Vivek Vinodh",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vivekvinodh/effortd.git"
+  },
+  "bugs": "https://github.com/vivekvinodh/effortd/issues",
+  "homepage": "https://github.com/vivekvinodh/effortd#readme",
   "type": "module",
   "engines": {
     "node": ">=20"
