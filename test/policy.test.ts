@@ -136,6 +136,49 @@ describe("E3.2 decision core — pointed cases", () => {
   });
 });
 
+describe("E5.2 one-way ratchet property", () => {
+  it("per-request effective effort never drops below the established session level", () => {
+    const efforts: Array<Effort | undefined> = [
+      undefined,
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+    ];
+    let seed = 42;
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) >>> 0;
+      return seed / 2 ** 32;
+    };
+    for (let trial = 0; trial < 50; trial += 1) {
+      let session: Effort | undefined;
+      for (let turn = 0; turn < 20; turn += 1) {
+        const input = base({ escalateOnSuggestion: true });
+        const requested = efforts[Math.floor(rnd() * efforts.length)];
+        const suggestion = efforts[Math.floor(rnd() * efforts.length)];
+        if (requested) input.requestedEffort = requested;
+        if (suggestion) input.suggestion = suggestion;
+        if (session) input.sessionEffort = session;
+
+        const decision = decide(input);
+        const effective = decision.applied ?? input.requestedEffort;
+        if (session !== undefined && effective !== undefined) {
+          expect(effortRank(effective)).toBeGreaterThanOrEqual(
+            effortRank(session),
+          );
+        }
+        if (session !== undefined && decision.sessionEffortNext !== undefined) {
+          expect(
+            effortRank(decision.sessionEffortNext),
+          ).toBeGreaterThanOrEqual(effortRank(session));
+        }
+        session = decision.sessionEffortNext ?? session;
+      }
+    }
+  });
+});
+
 describe("E3.2 decision core — invariant sweep over the full grid", () => {
   const efforts: Array<Effort | undefined> = [undefined, "low", "high", "max"];
   const bools = [true, false];

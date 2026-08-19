@@ -36,6 +36,7 @@ describe("E4.3 report", () => {
         usage: null,
         costUsd: null,
         unpriced: true,
+        suggestion: "low",
         sessionFingerprint: "bbbb000000000000",
       }),
       "not valid json — must be skipped, not fatal",
@@ -50,6 +51,7 @@ describe("E4.3 report", () => {
     expect(report).toContain("gpt-5.5");
     expect(report).toContain("$0.0375"); // 0.0175 + 0.02, hand-computed
     expect(report).toContain("would-have decisions: 1");
+    expect(report).toContain("suggestions offered: 1");
     expect(report).toContain("skipped 1 malformed line");
   });
 

@@ -25,6 +25,7 @@ export interface TelemetryRecord {
   requestedEffort?: Effort;
   appliedEffort?: Effort;
   wouldHaveEffort?: Effort;
+  suggestion?: Effort;
   sessionFingerprint?: string;
   usage: Usage | null;
   costUsd: number | null;

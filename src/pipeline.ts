@@ -5,7 +5,8 @@ import { gemini } from "./providers/gemini.js";
 import { openai } from "./providers/openai.js";
 import type { ProviderAdapter } from "./providers/types.js";
 import { SessionStore } from "./session.js";
-import { fingerprintFor } from "./session.js";
+import { fingerprintFor, firstUserText } from "./session.js";
+import { suggestEffort } from "./heuristics.js";
 import type { Effort } from "./effort.js";
 import { estimateCostUsd, priceFor } from "./pricing.js";
 import type { GatewayHooks, RequestInfo } from "./server.js";
@@ -30,6 +31,7 @@ export interface DecisionRecord {
   /** Path with the query string stripped (privacy floor: `?key=` must never surface). */
   path: string;
   requestedEffort?: Effort;
+  suggestion?: Effort;
   decision: Decision;
   sessionFingerprint?: string;
 }
@@ -83,8 +85,9 @@ export function createPolicyHooks(deps: PipelineDeps): GatewayHooks {
       }
       if (requested !== undefined) input.requestedEffort = requested;
       if (session?.effort !== undefined) input.sessionEffort = session.effort;
+      let suggestion: Effort | undefined;
       if (config.suggest.enabled && deps.suggestFor) {
-        const suggestion = deps.suggestFor(info, body);
+        suggestion = deps.suggestFor(info, body);
         if (suggestion !== undefined) input.suggestion = suggestion;
       }
 
@@ -101,6 +104,7 @@ export function createPolicyHooks(deps: PipelineDeps): GatewayHooks {
         decision,
       };
       if (requested !== undefined) record.requestedEffort = requested;
+      if (suggestion !== undefined) record.suggestion = suggestion;
       if (fingerprint !== undefined) record.sessionFingerprint = fingerprint;
       deps.onDecision?.(record, info);
 
@@ -131,8 +135,21 @@ export interface EffortdHooksDeps extends PipelineDeps {
  */
 export function createEffortdHooks(deps: EffortdHooksDeps): GatewayHooks {
   const decisions = new WeakMap<RequestInfo, DecisionRecord>();
+  // Default suggester: opener heuristics, session-start only (E5.1).
+  const suggestFor =
+    deps.suggestFor ??
+    ((info: RequestInfo, body: unknown): Effort | undefined => {
+      const adapterName = deps.mountAdapters[info.mount];
+      if (adapterName === undefined) return undefined;
+      const fingerprint = fingerprintFor(adapterName, body);
+      if (fingerprint !== undefined && deps.store.get(fingerprint) !== undefined) {
+        return undefined; // session already established — openers only
+      }
+      return suggestEffort(firstUserText(adapterName, body))?.suggested;
+    });
   const policy = createPolicyHooks({
     ...deps,
+    suggestFor,
     onDecision: (record, info) => {
       if (info) decisions.set(info, record);
       deps.onDecision?.(record, info);
@@ -196,6 +213,9 @@ export function createEffortdHooks(deps: EffortdHooksDeps): GatewayHooks {
           }
           if (decision?.sessionFingerprint !== undefined) {
             record.sessionFingerprint = decision.sessionFingerprint;
+          }
+          if (decision?.suggestion !== undefined) {
+            record.suggestion = decision.suggestion;
           }
           deps.sink!.write(record);
         },

@@ -59,6 +59,7 @@ export function renderReport(lines: string[], options: ReportOptions = {}): stri
   let unpriced = 0;
   let wouldHave = 0;
   let mutated = 0;
+  let suggestions = 0;
   let totalCost = 0;
 
   for (const record of records) {
@@ -89,6 +90,7 @@ export function renderReport(lines: string[], options: ReportOptions = {}): stri
     if (record.sessionFingerprint) sessions.add(record.sessionFingerprint);
     if (record.wouldHaveEffort !== undefined) wouldHave += 1;
     if (record.appliedEffort !== undefined) mutated += 1;
+    if (record.suggestion !== undefined) suggestions += 1;
   }
 
   const out: string[] = [];
@@ -105,7 +107,7 @@ export function renderReport(lines: string[], options: ReportOptions = {}): stri
     `estimated cost (priced rows only): ${formatUsd(totalCost)}   unpriced: ${unpriced}`,
   );
   out.push(
-    `policy: ${mutated} mutated, would-have decisions: ${wouldHave} (observe/suggest)`,
+    `policy: ${mutated} mutated, would-have decisions: ${wouldHave} (observe/suggest), suggestions offered: ${suggestions}`,
   );
   out.push("");
   out.push("by model:");
