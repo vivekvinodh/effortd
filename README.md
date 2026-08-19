@@ -2,7 +2,50 @@
 
 **A reasoning-spend policy gateway for AI coding agents.** Point your agent's provider base URL at effortd: it normalizes each provider's reasoning-effort dial (Anthropic `output_config.effort`, OpenAI `reasoning_effort`, Gemini thinking budgets) into one scale, applies your policy on a strict `observe → suggest → enforce` ladder, and records truthful per-session effort/token/cost telemetry. It works with any agent that can target a custom base URL — Claude Code, Codex CLI, Gemini CLI, and whatever ships next — because the API call is the one integration surface every agent shares.
 
-> **Status: pre-release.** Built in the open against [docs/V1-READINESS-PLAN.md](docs/V1-READINESS-PLAN.md). Quickstarts appear in this README only after they have been executed for real, with the transcript recorded in the plan's progress log — a standing rule, not a promise. Until then, expect config and behavior to move.
+> **Status: pre-release.** Built in the open against [docs/V1-READINESS-PLAN.md](docs/V1-READINESS-PLAN.md). Every quickstart below was executed for real, with the transcript recorded in the plan's progress log — a standing rule, not a promise.
+
+## Quickstarts (executed 2026-08-19)
+
+Build once: `npm install && npm run build`, then start the gateway (localhost-only, port 4141):
+
+```bash
+node dist/index.js start        # becomes `effortd start` once installed from npm
+node dist/index.js report --since 24h
+```
+
+Zero config = observe mode: byte-identical forwarding plus telemetry. `node dist/index.js init` writes a commented `effortd.yaml` when you want policy.
+
+### Claude Code
+
+```bash
+ANTHROPIC_BASE_URL=http://127.0.0.1:4141/anthropic claude
+```
+
+With only the base URL set, a saved claude.ai subscription login stays active and its limits/billing apply (documented Claude Code gateway semantics — effortd forwards the OAuth capability headers verbatim); API-key users keep their usual env. Verified live: main-loop **and** subagent calls land in telemetry with per-call cache economics, and enforce-mode clamps are accepted by the real API.
+
+### Codex CLI
+
+```toml
+# $CODEX_HOME/config.toml (use a dedicated CODEX_HOME to keep your real config untouched)
+model_provider = "effortd"
+
+[model_providers.effortd]
+name = "effortd gateway"
+base_url = "http://127.0.0.1:4141/openai/v1"
+wire_api = "responses"
+env_key = "OPENAI_API_KEY"
+```
+
+Verified live: `codex exec` requests transit effortd (`POST /openai/v1/responses`) and Codex's `model_reasoning_effort` arrives as `reasoning.effort`, visible to policy and telemetry. (Full-generation verification on this machine was blocked only by an unfunded OpenAI key.)
+
+### Gemini CLI
+
+```bash
+GEMINI_DEFAULT_AUTH_TYPE=gemini-api-key GEMINI_API_KEY=... \
+GOOGLE_GEMINI_BASE_URL=http://127.0.0.1:4141/gemini gemini
+```
+
+API-key auth mode routes through effortd (verified live to the upstream's own response); the CLI's individual Google-login path does not use the Gemini API base URL and is deprecated upstream.
 
 ## Why this shape
 
