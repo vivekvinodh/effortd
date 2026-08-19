@@ -45,7 +45,10 @@ const TASKS = [
   },
 ];
 
-const EFFORTS = ["low", "medium", "high", "xhigh"];
+const ALL_EFFORTS = ["low", "medium", "high", "xhigh"];
+const EFFORTS = process.env.EVAL_EFFORTS
+  ? process.env.EVAL_EFFORTS.split(",").filter((e) => ALL_EFFORTS.includes(e))
+  : ALL_EFFORTS;
 const TRIALS = Number(process.env.EVAL_TRIALS ?? 3);
 const GATEWAY = process.env.EVAL_GATEWAY ?? "http://127.0.0.1:4141/anthropic";
 const TELEMETRY = join(homedir(), ".effortd", "requests.jsonl");
