@@ -187,28 +187,28 @@ LiteLLM (generic proxy: keys, fallbacks, budgets — no effort-policy layer) · 
 
 *Gate: observe never mutates (byte-proven), enforce mutates exactly per documented semantics (sticky, escalate-only, floor/ceiling), every decision carries a reason, all under fail-open.*
 
-### [ ] E3.1 Config: `effortd.yaml` loading + `effortd init`
+### [x] E3.1 Config: `effortd.yaml` loading + `effortd init`
 - **Objective**: policy-as-code file with strict validation and safe defaults; unknown keys warn loudly (typo'd `celing:` must not silently no-op).
 - **Depends on**: E0.1.
 - Tasks: schema — `mode` (observe default), `default`, `floor`, `ceiling`, `session_sticky` (true), `escalate_only` (true), `inject` (false), `suggest.enabled` (true), `pricing` overrides, `port` (4141); search order `./effortd.yaml` → `~/.effortd/config.yaml` → defaults; `effortd init` writes a commented example (the example file doubles as config reference docs — every key + tradeoff commented).
 - **DoD**: [ ] Invalid values rejected with actionable errors; unknown-key warning tested; zero-config boot works.
 - **Verify**: `npm run verify`.
 
-### [ ] E3.2 Pure decision core
+### [x] E3.2 Pure decision core
 - **Objective**: `decide(input) → {applied?, action, reason}` as a pure, exhaustively-tested function — the project's money logic, isolated from I/O.
 - **Depends on**: E3.1, E2.1.
 - Tasks: inputs `{mode, config, model, supportsEffort, requestedEffort?, sessionEffort?, suggestion?}`; semantics: observe → never `applied`, but full would-have decision recorded; clamp to floor/ceiling; sticky: session's established effort wins except a *higher* candidate when `escalate_only` (which updates the session); `inject: false` → absent effort stays absent; every path emits machine-readable `reason` (mirroring automode's surfaced denial reasons — V-series design echo).
 - **DoD**: [ ] Decision-table test covering the full mode × sticky × escalate × inject × support matrix (enumerated, not sampled); failing-first evidence for the sticky/escalate cases.
 - **Verify**: `npm run verify`.
 
-### [ ] E3.3 Session fingerprinting + store
+### [x] E3.3 Session fingerprinting + store
 - **Objective**: stable conversation identity so stickiness works across turns without storing content.
 - **Depends on**: E2.1 (provider body shapes).
 - Tasks: per-provider fingerprint = sha256 (truncated) over stable prefix material (Anthropic: system head + first user message head; OpenAI/Gemini equivalents per E0.3 shapes); in-memory store with TTL + size cap; **collision honesty**: document that fingerprints are best-effort (a re-asked identical first message = same session — acceptable for stickiness semantics, stated in DESIGN.md).
 - **DoD**: [ ] Fixture-based tests: multi-turn growth of the same conversation → constant fingerprint; different conversations → distinct; content never retained (store holds hash → effort/counters only, asserted).
 - **Verify**: `npm run verify`.
 
-### [ ] E3.4 Wire policy into the proxy
+### [x] E3.4 Wire policy into the proxy
 - **Objective**: the pipeline — parse (inference paths only) → fingerprint → decide → (enforce: mutate via E2 mapper) → forward — under the fail-open guarantee.
 - **Depends on**: E1.2, E2.1, E3.2, E3.3.
 - Tasks: integrate; observe-mode **byte-identity regression test** (same harness as E1.1 — this is where transparency is easiest to lose); enforce-mode tests (clamp applied; injection only when configured AND allowlisted; non-inference paths untouched); poisoned-decide fail-open test at this layer.
@@ -368,4 +368,8 @@ LiteLLM (generic proxy: keys, fallbacks, budgets — no effort-policy layer) · 
 - 2026-08-18 — E2.1 — `69ebbd4` — effort scale + Anthropic adapter. Failing-first: `Failed to load url ../src/effort.js`. V2 matrix table-driven row-for-row incl. Bedrock-prefixed ids; injection against `claude-haiku-4-5` proven impossible; applyEffort immutability asserted.
 - 2026-08-18 — E2.2 — `053d3ce` — OpenAI adapter, clamp-only (`canInject` always false), conservative-core writes (`xhigh|max→high`), both wire shapes (Responses `reasoning.effort`, chat `reasoning_effort`), sub-low `none|minimal` never touched. Failing-first captured. `canInject` seam added to the adapter interface (Anthropic: allowlist-gated true).
 - 2026-08-18 — E2.3 — `2339d8f` — Gemini adapter per the R3 correction: `thinkingLevel`-first, guide-matrix gating, budget-style requests observe-only (refused for writes), model parsed from path. **DoD adaptation**: the planned `toBudget(fromBudget(b))` round-trip property presumed the stale numeric-budget design; superseded by budget-refusal + non-matrix-uninjected tests (both present). PROVIDERS.md mapper policy line aligned. **Security review catch** (`afb26be`): the E1.3 access log printed full paths incl. query strings — would leak Gemini `?key=` credentials to stdout; queries now stripped (privacy-floor enforcement, flagged by the background commit review).
+- 2026-08-18 — E3.1 — `081f5b9` — config loader + `effortd init`. Failing-first: `Failed to load url ../src/config.js`. The typo'd-key case (`celing`, `suggest.enabeld`) warns loudly; floor>ceiling and bad modes throw actionably; the init example self-tests (parses warning-free to exactly DEFAULT_CONFIG).
+- 2026-08-18 — E3.2 — `335fce7` — pure decision core. Pointed cases + invariant sweep over the full 2,304-combination grid (I1 only-enforce-mutates, I2 never-restates-request, I3 no-sourceless-writes, I4 bounds-respected, I5 ratchet-monotone, I6 every-decision-explains-itself). Failing-first capture was missed; **substituted with stronger mutation evidence**: disabling the escalate-only branch failed exactly the "session rise, never fall" test; revert → 98 green. Design refinements forced by the sweep: session pins re-clamp against current bounds; ratchet state stays monotone even when a ceiling drops below an established session (writes clamp, state doesn't decay).
+- 2026-08-18 — E3.3 — `766be12` — fingerprints (sha256/16 over system-head + first-user-head; string and block content unify) + hash-only store (TTL, LRU cap, injectable clock). Content non-retention asserted by serializing the store and grepping for conversation text. Failing-first captured.
+- 2026-08-18 — E3.4 — `b95a27c` — pipeline wired; 8 integration tests through the real gateway incl. observe byte-identity, exactly-one-field enforce diff, allowlist-gated injection, sticky-across-requests, capability-equal write skip (floor xhigh on sonnet-4-6 with requested high → byte-identical), gemini budget fail-open, malformed-JSON fail-open. CLI: `start` loads config (source + warnings printed, decision log with redacted paths), `init` writes the example (refuses overwrite sans --force). **End-to-end live check**: init → edit to `mode: enforce, ceiling: medium` → start → real POST against api.anthropic.com logged `policy anthropic/claude-opus-5 clamped -> medium: capped at ceiling medium` then upstream 401 (no key) — the mutation demonstrably traveled. E3 gate green (98/98).
 - 2026-08-18 — E0.1 — `a7d498b` — scaffold + gate live. **Failing-first evidence**: `test/cli.test.ts` written before `src/` existed → `npm test` failed with `Failed to load url ../src/cli.js … Does the file exist?` (1 file failed); implementation then flipped it to 4/4 green. **Deliberate-break evidence (DoD)**: temp `src/_break.ts` → `error TS2322: Type 'string' is not assignable to type 'number'`; temp `test/_break.test.ts` → `FAIL … AssertionError: expected 1 to be 2` — both halves of `verify` catch, both reverted, `verify-exit=0` re-confirmed. CLI smoke on the compiled `dist/`: `help`→0, stub commands→1 with honest not-implemented message, unknown→2 (first measurement showed `unknown-exit=0` — artifact of reading `$?` after a `| head` pipeline, i.e. head's exit; re-measured unpiped → 2). `npm pack --dry-run`: LICENSE + dist/cli.js + dist/index.js + package.json only. Runtime deps `["yaml"]` exactly. CI workflow authored (node 20/22 matrix, no event-derived inputs); activates at E8.2 first push.
