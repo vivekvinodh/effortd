@@ -221,20 +221,20 @@ LiteLLM (generic proxy: keys, fallbacks, budgets — no effort-policy layer) · 
 
 *Gate: every proxied inference request yields one honest JSONL record; `effortd report` turns a week of logs into per-session/model/effort spend truth, with coverage gaps stated.*
 
-### [ ] E4.1 Usage extraction (tee, never block)
+### [x] E4.1 Usage extraction (tee, never block)
 - **Objective**: token usage from streaming and non-streaming responses on all three providers, parsed off a tee that cannot affect the client stream.
 - **Depends on**: E1.1; U8/U2/U4 resolved (E0.3 + live fixtures).
 - Tasks: bounded accumulator (cap ~2 MB — beyond it, record `usage: null`, never stall); Anthropic JSON + SSE (`message_start`/`message_delta`, cache fields included); OpenAI (+ `include_usage` caveat recorded as coverage, never injected by us — mutating `stream_options` would violate observe transparency); Gemini `usageMetadata`. Capture one live scrubbed fixture per provider format we can access; recorded fixtures drive the tests.
 - **DoD**: [ ] Fixture tests per provider/stream-mode; tee-failure test (corrupt SSE mid-stream → client unaffected, `usage: null` logged). [ ] U8 confirmed against the live fixture; PROVIDERS.md updated.
 - **Verify**: `npm run verify`.
 
-### [ ] E4.2 JSONL sink + pricing estimates
+### [x] E4.2 JSONL sink + pricing estimates
 - **Objective**: append-only `~/.effortd/requests.jsonl` (metadata-only per §1) + config-overridable dated price table → per-request cost estimate (cache read/write rates included for Anthropic).
 - **Depends on**: E4.1, E3.4 (decision records land in the same row).
 - **DoD**: [ ] Privacy test: serialized record proven free of body/header content by construction (type-level + runtime assert). [ ] Cost math unit-tested against hand-computed rows; unknown model → `cost: null` + "unpriced" flag (never $0 — that would be a lie).
 - **Verify**: `npm run verify`.
 
-### [ ] E4.3 `effortd report`
+### [x] E4.3 `effortd report`
 - **Objective**: aggregate JSONL → terminal report: totals + by day/model/effort/session; suggest-mode what-if counts; **coverage line** ("N of M requests had usage data") so absence of data is never displayed as absence of spend.
 - **Depends on**: E4.2.
 - **DoD**: [ ] Fixture-log report matches hand-computed numbers exactly; empty/missing log states handled with guidance, not stack traces.
@@ -368,6 +368,9 @@ LiteLLM (generic proxy: keys, fallbacks, budgets — no effort-policy layer) · 
 - 2026-08-18 — E2.1 — `69ebbd4` — effort scale + Anthropic adapter. Failing-first: `Failed to load url ../src/effort.js`. V2 matrix table-driven row-for-row incl. Bedrock-prefixed ids; injection against `claude-haiku-4-5` proven impossible; applyEffort immutability asserted.
 - 2026-08-18 — E2.2 — `053d3ce` — OpenAI adapter, clamp-only (`canInject` always false), conservative-core writes (`xhigh|max→high`), both wire shapes (Responses `reasoning.effort`, chat `reasoning_effort`), sub-low `none|minimal` never touched. Failing-first captured. `canInject` seam added to the adapter interface (Anthropic: allowlist-gated true).
 - 2026-08-18 — E2.3 — `2339d8f` — Gemini adapter per the R3 correction: `thinkingLevel`-first, guide-matrix gating, budget-style requests observe-only (refused for writes), model parsed from path. **DoD adaptation**: the planned `toBudget(fromBudget(b))` round-trip property presumed the stale numeric-budget design; superseded by budget-refusal + non-matrix-uninjected tests (both present). PROVIDERS.md mapper policy line aligned. **Security review catch** (`afb26be`): the E1.3 access log printed full paths incl. query strings — would leak Gemini `?key=` credentials to stdout; queries now stripped (privacy-floor enforcement, flagged by the background commit review).
+- 2026-08-18 — E4.1 — usage extraction (all three providers, JSON + SSE, chunk-boundary-safe, corrupt-stream-tolerant, 2MB cap → null). Failing-first captured. **Live fixture captured through the gateway** (claude -p, subscription, content scrubbed): confirms R8 verbatim AND enriches it — the final `message_delta` carries full usage incl. cache fields and `output_tokens_details.thinking_tokens`; real numbers (cache_read 53,643 / cache_write 17,234) baked into the test.
+- 2026-08-18 — E4.2 — pricing (dated Anthropic list-price defaults ONLY — unverified providers stay unpriced by design) + metadata-only JSONL sink + decision↔usage join via RequestInfo identity. Privacy proven by marker test: header/system/body secrets never reach the sink; unknown model → cost null + unpriced (never $0). Cache economics in the cost math (read 0.1×, write 1.25×), hand-computed expectations.
+- 2026-08-18 — E4.3 — report aggregation (totals, by-model, by-effort, sessions, usage-coverage line, malformed-line resilience, --since). **Live end-to-end evidence**: real claude -p run through `effortd start` → JSONL → `effortd report --since 1h` rendered the actual session: claude-fable-5, 1 request, effort high (Claude Code's own request value), $0.2695 estimated — dominated by cache write/read, exactly the economics DESIGN.md conclusion 4 describes. E4 gate green (114/114). Report string bug (duplicated would-have clause) caught by eyeballing the live output — the tests' `toContain` was too permissive to see it; fixed in the same step.
 - 2026-08-18 — E3.1 — `081f5b9` — config loader + `effortd init`. Failing-first: `Failed to load url ../src/config.js`. The typo'd-key case (`celing`, `suggest.enabeld`) warns loudly; floor>ceiling and bad modes throw actionably; the init example self-tests (parses warning-free to exactly DEFAULT_CONFIG).
 - 2026-08-18 — E3.2 — `335fce7` — pure decision core. Pointed cases + invariant sweep over the full 2,304-combination grid (I1 only-enforce-mutates, I2 never-restates-request, I3 no-sourceless-writes, I4 bounds-respected, I5 ratchet-monotone, I6 every-decision-explains-itself). Failing-first capture was missed; **substituted with stronger mutation evidence**: disabling the escalate-only branch failed exactly the "session rise, never fall" test; revert → 98 green. Design refinements forced by the sweep: session pins re-clamp against current bounds; ratchet state stays monotone even when a ceiling drops below an established session (writes clamp, state doesn't decay).
 - 2026-08-18 — E3.3 — `766be12` — fingerprints (sha256/16 over system-head + first-user-head; string and block content unify) + hash-only store (TTL, LRU cap, injectable clock). Content non-retention asserted by serializing the store and grepping for conversation text. Failing-first captured.
