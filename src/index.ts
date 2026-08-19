@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { helpText, parseCli } from "./cli.js";
+import { parseSince, renderReport } from "./report.js";
+import { defaultTelemetryDir } from "./telemetry.js";
 import { ConfigError, exampleConfig, loadConfig } from "./config.js";
 import { createEffortdHooks } from "./pipeline.js";
 import { createJsonlSink } from "./telemetry.js";
@@ -109,9 +112,26 @@ switch (parsed.command) {
     break;
   }
 
-  case "report":
-    console.error(
-      `effortd report: not implemented yet — lands per docs/V1-READINESS-PLAN.md (E4.3).`,
-    );
-    process.exit(1);
+  case "report": {
+    const sinceFlag = parsed.args.indexOf("--since");
+    const sinceMs =
+      sinceFlag >= 0 ? parseSince(parsed.args[sinceFlag + 1]) : undefined;
+    if (sinceFlag >= 0 && sinceMs === undefined) {
+      console.error(
+        "effortd report: invalid --since value (use e.g. 90m, 24h, 7d)",
+      );
+      process.exit(2);
+    }
+    const logPath = join(defaultTelemetryDir(), "requests.jsonl");
+    let text = "";
+    try {
+      text = readFileSync(logPath, "utf8");
+    } catch {
+      // fall through: renderReport handles the empty case with guidance
+    }
+    const options: { sinceMs?: number } = {};
+    if (sinceMs !== undefined) options.sinceMs = sinceMs;
+    console.log(renderReport(text.split("\n"), options));
+    break;
+  }
 }
