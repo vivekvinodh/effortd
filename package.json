@@ -15,7 +15,7 @@
     "node": ">=20"
   },
   "bin": {
-    "effortd": "./dist/index.js"
+    "effortd": "dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [
