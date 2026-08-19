@@ -21,6 +21,13 @@ export interface ProviderAdapter {
   readEffort(body: unknown): Effort | undefined;
   effortCapability(model: string): EffortCapability;
   /**
+   * Whether policy may INJECT an effort field this request didn't carry.
+   * Clamp-only providers return false for every model (see docs/PROVIDERS.md
+   * mapper policy); clamping a value that is already present only needs
+   * planEffort/applyEffort.
+   */
+  canInject(model: string): boolean;
+  /**
    * The value that would actually be written for `desired` on `model`
    * (capability-mapped), or undefined when the model must not be touched.
    */

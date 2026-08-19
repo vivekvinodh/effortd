@@ -56,6 +56,10 @@ export const anthropic: ProviderAdapter = {
 
   effortCapability: capability,
 
+  canInject(model) {
+    return capability(model) !== "none";
+  },
+
   planEffort(model, desired) {
     return mapForCapability(capability(model), desired);
   },
