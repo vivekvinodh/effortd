@@ -35,8 +35,12 @@ switch (parsed.command) {
       mounts: DEFAULT_MOUNTS,
       hooks: {
         tapResponse: (request, response) => {
+          // Query strings are stripped: Gemini carries API keys in `?key=...`,
+          // and the privacy floor forbids credentials in any output.
+          const pathSansQuery = request.path.split("?")[0];
+          const hadQuery = request.path.includes("?") ? "?…" : "";
           console.log(
-            `[effortd] ${request.method} ${request.mount}${request.path} -> ${response.status}`,
+            `[effortd] ${request.method} ${request.mount}${pathSansQuery}${hadQuery} -> ${response.status}`,
           );
           return undefined;
         },
