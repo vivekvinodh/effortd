@@ -2,7 +2,8 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { helpText, parseCli } from "./cli.js";
 import { ConfigError, exampleConfig, loadConfig } from "./config.js";
-import { createPolicyHooks } from "./pipeline.js";
+import { createEffortdHooks } from "./pipeline.js";
+import { createJsonlSink } from "./telemetry.js";
 import { anthropic } from "./providers/anthropic.js";
 import { gemini } from "./providers/gemini.js";
 import { openai } from "./providers/openai.js";
@@ -59,10 +60,13 @@ switch (parsed.command) {
       process.exit(2);
     }
 
-    const policy = createPolicyHooks({
+    const sink = createJsonlSink();
+    const hooks = createEffortdHooks({
       config,
       store: new SessionStore(),
       mountAdapters: MOUNT_ADAPTERS,
+      sink,
+      onAccess: (line) => console.log(`[effortd] ${line}`),
       onDecision: (record) => {
         const { decision } = record;
         if (decision.action === "untouched" && decision.wouldHave === undefined) {
@@ -80,22 +84,7 @@ switch (parsed.command) {
       },
     });
 
-    const server = createGateway({
-      mounts: MOUNTS,
-      hooks: {
-        ...policy,
-        tapResponse: (request, response) => {
-          // Query strings are stripped: Gemini carries API keys in `?key=...`,
-          // and the privacy floor forbids credentials in any output.
-          const pathSansQuery = request.path.split("?")[0];
-          const hadQuery = request.path.includes("?") ? "?…" : "";
-          console.log(
-            `[effortd] ${request.method} ${request.mount}${pathSansQuery}${hadQuery} -> ${response.status}`,
-          );
-          return undefined;
-        },
-      },
-    });
+    const server = createGateway({ mounts: MOUNTS, hooks });
     server.listen(port, "127.0.0.1", () => {
       console.log(
         `effortd listening on http://127.0.0.1:${port} — mode: ${config.mode} (config: ${source})`,
